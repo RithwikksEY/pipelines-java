@@ -1,28 +1,52 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
-
 trigger:
-- main
+- main   # Runs the pipeline automatically whenever code is pushed to the 'main' branch.
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-latest   # Uses the Ubuntu VM image for running the pipeline.
 
-steps:
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.11'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+stages:
+# ----------------------- STAGE 1: Build & Test -----------------------
+- stage: Build_And_Test
+  displayName: "Build and Test Stage"
+  jobs:
+  - job: Build
+    displayName: "Build Maven Project"
+    steps:
 
-- script: |
-    echo "Build completed ✅"
-    ls -R
-  displayName: Show build output
- 
+    - task: Maven@3
+      displayName: "Run Maven Package"
+      inputs:
+        mavenPomFile: 'pom.xml'               # Path to the main Maven file.
+        mavenOptions: '-Xmx3072m'              # Java memory options.
+        javaHomeOption: 'JDKVersion'           # Choose a JDK installed on the build agent.
+        jdkVersionOption: '1.11'               # Use Java 11.
+        jdkArchitectureOption: 'x64'           # 64‑bit JDK.
+        publishJUnitResults: true              # Upload JUnit test results to Azure DevOps.
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'  # Path to test reports.
+        goals: 'clean package'                 # Clean old output + build the project.
+
+    - script: |
+        echo "✅ Build & tests completed"
+        ls -R
+      displayName: "Show build output"
+
+    - task: PublishBuildArtifacts@1
+      displayName: "Publish Artifacts"
+      inputs:
+        pathToPublish: 'target'             # Publish compiled JAR/WAR files from target/
+        artifactName: 'java-build-output'   # Name of the artifact
+        publishLocation: 'Container'
+
+# ----------------------- STAGE 2: Deployment (Optional) -----------------------
+- stage: Deploy
+  displayName: "Deploy Stage"
+  dependsOn: Build_And_Test                # Only run this stage if build & tests succeed
+  condition: succeeded()
+  jobs:
+  - job: DeployJob
+    displayName: "Mock deploy step"
+    steps:
+    - script: |
+        echo "🚀 Deployment step triggered"
+        echo "Here you would normally SSH, copy files, or use a deployment task"
+      displayName: "Simulated deployment"
